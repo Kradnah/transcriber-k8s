@@ -23,8 +23,9 @@ def load_settings() -> Settings:
     env = os.environ.get
     return Settings(
         redis_url=env("REDIS_URL", "redis://localhost:6379/0"),
-        # Empty API_KEY disables auth (local development only).
-        api_key=env("API_KEY", ""),
+        # Empty API_KEY disables auth (local development only). Strip so a key created
+        # from a file (trailing newline) still matches the header value.
+        api_key=env("API_KEY", "").strip(),
         max_upload_mb=int(env("MAX_UPLOAD_MB", "10")),
         job_ttl_seconds=int(env("JOB_TTL_SECONDS", "86400")),
         # "whisper" for real transcription, "fake" for tests and CI.
