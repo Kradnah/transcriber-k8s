@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transcriber-config
+data:
+  REDIS_URL: redis://redis:6379/0
+  MAX_UPLOAD_MB: "10"
+  JOB_TTL_SECONDS: "86400"
+  TRANSCRIBER: whisper
+  # tiny | base | small. "base" needs ~1 GB RAM with int8; "small" ~2 GB.
+  WHISPER_MODEL: base
+  WHISPER_COMPUTE_TYPE: int8
+  MODEL_CACHE_DIR: /models
+  HF_HOME: /models/hf

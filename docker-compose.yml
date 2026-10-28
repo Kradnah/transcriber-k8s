@@ -1,0 +1,29 @@
+# Local development: same three components as the cluster, without Kubernetes.
+#   docker compose up --build
+#   curl -F file=@call.wav localhost:8000/v1/transcriptions
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+
+  api:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on: [redis]
+
+  worker:
+    build: .
+    command: ["python", "-m", "app.worker"]
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      MODEL_CACHE_DIR: /models
+      HF_HOME: /models/hf
+    volumes:
+      - models:/models
+    depends_on: [redis]
+
+volumes:
+  models:

@@ -1,0 +1,69 @@
+# k3s enforces NetworkPolicy out of the box (embedded kube-router).
+# 1) Deny all inbound traffic in the namespace by default.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+# 2) Only the API and the workers may talk to Redis.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-from-app
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: ["api", "worker"]
+      ports:
+        - port: 6379
+---
+# 3) The API accepts traffic only from the Traefik ingress controller (kube-system).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-from-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - port: 8000
+---
+# 4) cert-manager starts a temporary HTTP-01 solver pod in this namespace to prove domain ownership.
+#    Without this rule the default deny blocks Let's Encrypt and the certificate never issues.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: acme-solver-from-ingress
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 8089

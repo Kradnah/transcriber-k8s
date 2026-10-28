@@ -1,0 +1,79 @@
+# Model files are downloaded once and reused across restarts.
+# ReadWriteOnce works for several worker pods here because k3s is single-node.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: worker
+        app.kubernetes.io/component: worker
+    spec:
+      automountServiceAccountToken: false
+      # Give an in-flight transcription time to finish after SIGTERM.
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: transcriber
+          imagePullPolicy: Always
+          command: ["python", "-m", "app.worker"]
+          envFrom:
+            - configMapRef:
+                name: transcriber-config
+          # First start downloads the model; allow up to 10 minutes before liveness applies.
+          startupProbe:
+            exec:
+              command: ["python", "-m", "app.healthcheck"]
+            periodSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            exec:
+              command: ["python", "-m", "app.healthcheck"]
+            periodSeconds: 30
+            timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi

@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Never commit real secrets or kubeconfigs
+*.kubeconfig
+kubeconfig*
+secret.yaml
+*.wav
+*.mp3
