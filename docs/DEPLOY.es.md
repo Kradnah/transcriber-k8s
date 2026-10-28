@@ -26,6 +26,11 @@ Traefik y querría esos puertos. Opciones:
    como `NodePort` y enruta un subdominio desde el Traefik de Dokploy a ese puerto. Funciona,
    pero mezclas dos orquestadores en una máquina; hazlo solo si tienes RAM de sobra (8 GB+).
 
+**Opción 2 automatizada:** [`deploy/vps/install-k3s.sh`](../deploy/vps/install-k3s.sh) instala k3s
+sin servicelb, deja su Traefik como NodePort solo en `172.17.0.1:30080`, abre las reglas de ufw
+necesarias y crea la ruta en el Traefik de Dokploy (que pone el HTTPS). Luego se despliega con
+`kubectl apply -k k8s/overlays/vps` (sin cert-manager: el certificado lo emite Dokploy).
+
 ### Otras cosas que necesitas
 - **Cuenta de GitHub** con este repo público (también lo necesitas para tu CV).
 - **Subdominio** apuntando al VPS: registro `A` `transcriber.julian-lizcano.com` → IP del VPS.

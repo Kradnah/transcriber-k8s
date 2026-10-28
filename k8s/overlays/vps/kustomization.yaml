@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Same VPS as Dokploy: Dokploy's Traefik terminates TLS on 80/443 and forwards plain HTTP
+# to k3s's Traefik (NodePort 30080), so this overlay drops the cert-manager TLS block.
+resources:
+  - ../../base
+
+images:
+  - name: transcriber
+    newName: ghcr.io/kradnah/transcriber-k8s
+    newTag: latest
+
+patches:
+  - target:
+      kind: Ingress
+      name: api
+    patch: |-
+      - op: remove
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+      - op: remove
+        path: /spec/tls
+      - op: replace
+        path: /spec/rules/0/host
+        value: transcriber.julian-lizcano.com
